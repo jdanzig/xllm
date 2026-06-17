@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Twitter monitor runtime artifacts
+*.db
+*.db-wal
+*.db-shm
+monitor_*.json
