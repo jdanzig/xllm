@@ -98,3 +98,69 @@ Output ONLY the JSON array, nothing else.""",
 
         relevant_indices: list[int] = json.loads(raw)
         return [tweets[i - 1] for i in relevant_indices if 1 <= i <= len(tweets)]
+
+    def refine_query(
+        self,
+        description: str,
+        current_query: str,
+        sample_tweets: list[dict],
+        feedback: str = "",
+    ) -> tuple[str, str]:
+        """
+        Given the current query and a sample of the tweets it returned, produce an
+        improved query. Used by the post-first-check refinement loop.
+
+        `feedback` is optional free-text from the user describing what was wrong
+        (e.g. "too much sports news, I only care about the company").
+
+        Returns (new_query, explanation).
+        """
+        sample = "\n".join(
+            f"- @{t['author']}: {t['text'][:200]}"
+            for t in sample_tweets[:15]
+        ) or "(no tweets were returned)"
+
+        feedback_block = (
+            f"\nThe user gave this feedback about the results:\n{feedback}\n"
+            if feedback.strip() else ""
+        )
+
+        response = self.client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=512,
+            messages=[{
+                "role": "user",
+                "content": f"""You previously built a Twitter/X search query for this goal.
+
+Goal: {description}
+
+Current query: {current_query}
+
+A sample of the tweets it returned:
+{sample}
+{feedback_block}
+Produce an improved query that better matches the goal — tighten it if the
+results are noisy/off-topic, or broaden it if too few relevant results came back.
+
+Available operators: "exact phrase", OR, implicit AND, -exclude, #hashtag,
+$CASHTAG, from:user, to:user, min_faves:N, min_retweets:N, has:images,
+has:videos, has:links.
+
+Rules:
+- Do NOT include lang: or -is:retweet (added automatically).
+- Do NOT wrap the whole query in quotes.
+
+Respond with ONLY a JSON object (no markdown fences):
+{{"query": "<improved query>", "explanation": "<one sentence on what changed>"}}""",
+            }],
+        )
+
+        raw = response.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+
+        result = json.loads(raw)
+        return result["query"], result["explanation"]

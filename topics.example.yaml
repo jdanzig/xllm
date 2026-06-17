@@ -1,0 +1,30 @@
+# Example multi-topic config for the Twitter/X monitoring service.
+#
+#   python monitor.py --config topics.example.yaml
+#
+# Settings under `defaults` apply to every topic and can be overridden per topic.
+
+defaults:
+  interval: 20m
+  duration: 6h
+  lang: en
+  max_results: 100
+
+topics:
+  # Watch for mentions of a product launch, only reasonably-engaged tweets.
+  - description: "people reacting to our new product launch"
+    name: launch
+    min_likes: 10
+    filter: true
+    summary: true
+
+  # Track competitor mentions and ping a Slack channel on new matches.
+  - description: "discussion of competing products in our space"
+    name: competitors
+    # webhook: https://hooks.slack.com/services/XXX/YYY/ZZZ
+
+  # A focused query override with engagement filtering baked in.
+  - description: "crypto rug pulls and scams"
+    name: scams
+    query: '"rug pull" OR "crypto scam" -giveaway'
+    interval: 30m
